@@ -5,45 +5,45 @@
 #include "third_party/coro/coro.h"
 
 #define STACK_SIZE (8 * 1024 * 1024)
+#define MAX_TASKS 8192
 
 struct task {
-	struct task *next;
 	struct coro c;
 };
 
 struct sched {
-	struct task *head;
-	struct task *tail;
+	struct task **tasks;
+	int cap;
+	int r;
+	int w;
+	int size;
 };
 
-void sched_schedule(struct sched *s, struct task *t)
+int sched_schedule(struct sched *s, struct task *t)
 {
-	if (!s->head) {
-		s->head = t;
-		s->tail = t;
-		return;
+	if (s->size == s->cap) {
+		return -1;
 	}
-	s->tail->next = t;
-	s->tail = t;
+	s->tasks[s->w] = t;
+	s->w = (s->w + 1) % s->cap;
+	s->size++;
+	return 0;
 }
 
 struct task *sched_get_task(struct sched *s)
 {
-	if (!s->head) {
+	if (s->size == 0) {
 		return 0;
 	}
-	struct  task *t = s->head;
-	s->head = s->head->next;
-	if (!s->head) {
-		s->tail = 0;
-	}
-	t->next = 0;
+	struct task *t = s->tasks[s->r];
+	s->r = (s->r + 1) % s->cap;
+	s->size--;
 	return t;
 }
 
 void sched_run(struct sched *s)
 {
-	while (s->head) {
+	while (s->size) {
 		struct task *t = sched_get_task(s);
 		coro_resume(&t->c);
 		if (!coro_done(&t->c)) {
@@ -84,6 +84,12 @@ void run() {
 
 int main()
 {
+	global_sched.tasks = calloc(1, sizeof(struct task *) * MAX_TASKS);
+	if (!global_sched.tasks) {
+		perror("malloc");
+		return 1;
+	}
+	global_sched.cap = MAX_TASKS;
 	spawn(streamof, (void *)5);
 	run();
 	return 0;
