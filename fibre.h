@@ -9,8 +9,8 @@ struct fibre {
 
 typedef void (*fibre_func)(void *arg);
 
-extern void spawn(fibre_func func, void *arg);
+extern int spawn(fibre_func func, void *arg);
 extern void yield();
-extern void start(fibre_func entry, void *arg);
+extern int start(fibre_func entry, void *arg);
 
 #endif

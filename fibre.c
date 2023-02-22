@@ -11,16 +11,6 @@
 struct fibre *curr;
 struct queue ready;
 
-static void *allocate(uint64_t n)
-{
-	void *p = malloc(n);
-	if (!p) {
-		perror("calloc");
-		exit(EXIT_FAILURE);
-	}
-	return p;
-}
-
 static void spawn_entry(struct coro *c, fibre_func func)
 {
 	void *arg = coro_yield(c, 0);
@@ -28,15 +18,26 @@ static void spawn_entry(struct coro *c, fibre_func func)
 	func(arg);
 }
 
-void spawn(fibre_func func, void *arg)
+int spawn(fibre_func func, void *arg)
 {
-	struct fibre *f = (struct fibre *)allocate(sizeof(*f));
+	struct fibre *f = (struct fibre *)malloc(sizeof(*f));
+	if (!f) {
+		return -1;
+	}
 	memset(f, 0, sizeof(*f));
-	void *stack = allocate(STACK_SIZE);
+	void *stack = malloc(STACK_SIZE);
+	if (!stack) {
+		goto cleanup_fibre;
+	}
 	coro_init(&f->c, stack, STACK_SIZE, (coro_func)spawn_entry, func);
 	coro_resume(&f->c);
 	coro_yield(&f->c, arg);
 	queue_add(&ready, &f);
+	return 0;
+
+cleanup_fibre:
+	free(f);
+	return -1;
 }
 
 void yield()
@@ -44,11 +45,19 @@ void yield()
 	coro_yield(&curr->c, 0);
 }
 
-void start(fibre_func entry, void *arg)
+int start(fibre_func entry, void *arg)
 {
-	void *mem = allocate(sizeof(struct fibre *) * MAX_FIBRES);
+	int status = 0;
+	void *mem = malloc(sizeof(struct fibre *) * MAX_FIBRES);
+	if (!mem) {
+		status = -1;
+		goto cleanup;
+	}
 	queue_init(&ready, mem, MAX_FIBRES, sizeof(struct fibre *));
-	spawn(entry, arg);
+	if (spawn(entry, arg) < 0) {
+		status = -1;
+		goto cleanup;
+	}
 	while (!queue_empty(&ready)) {
 		struct fibre *f;
 		queue_poll(&ready, &f);
@@ -61,4 +70,7 @@ void start(fibre_func entry, void *arg)
 			free(f);
 		}
 	}
+cleanup:
+	free(mem);
+	return status;
 }
