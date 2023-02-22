@@ -1,7 +1,7 @@
-OBJECTS += fibre.o queue.o third_party/coro/libcoro.o
-CCFLAGS += -Wall -Werror -O3
+OBJECTS += hashmap.o fibre.o queue.o third_party/coro/libcoro.o
+CCFLAGS += -Wall -Werror
 
-main: $(OBJECTS)
+main: $(OBJECTS) main.c
 	$(CC) $(CCFLAGS) -o main main.c $(OBJECTS)
 
 third_party/coro/libcoro.o:
