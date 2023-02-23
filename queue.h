@@ -10,10 +10,10 @@ struct queue {
 	int w;
 };
 
-extern void queue_init(struct queue *q, void *mem, int cap, int esize);
+extern int queue_init(struct queue *q, int cap, int esize);
 extern int queue_add(struct queue *q, void *data);
 extern int queue_poll(struct queue *q, void *out);
-extern int queue_peek(struct queue *q, void *out);
+extern void *queue_peek(struct queue *q);
 extern int queue_size(struct queue *q);
 extern int queue_empty(struct queue *q);
 

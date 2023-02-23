@@ -1,14 +1,48 @@
-#include "queue.h"
-
 #include <string.h>
+#include <stdlib.h>
+
+#include "queue.h"
 
 static void *queue_addr(struct queue *q, int pos)
 {
 	return q->mem + q->esize * pos;
 }
 
-void queue_init(struct queue *q, void *mem, int cap, int esize)
+static int queue_grow(struct queue *q, int newcap)
 {
+	struct queue newq = { 0 };
+	void *mem = malloc(q->esize * newcap);
+	if (!mem) {
+		return -1;
+	}
+	void *tmp = malloc(q->esize);
+	if (!tmp) {
+		goto cleanup_mem;
+	}
+	queue_init(&newq, newcap, q->esize);
+	while (!queue_empty(q)) {
+		queue_poll(q, tmp);
+		queue_add(&newq, tmp);
+	}
+	free(q->mem);
+	free(tmp);
+	memcpy(q, &newq, sizeof(*q));
+	return 0;
+
+cleanup_mem:
+	free(mem);
+	return -1;
+}
+
+int queue_init(struct queue *q, int cap, int esize)
+{
+	if (cap < 8) {
+		cap = 8;
+	}
+	void *mem = malloc(esize * cap);
+	if (!mem) {
+		return -1;
+	}
 	*q = (struct queue){
 		.mem = mem,
 		.esize = esize,
@@ -17,12 +51,15 @@ void queue_init(struct queue *q, void *mem, int cap, int esize)
 		.r = 0,
 		.w = 0,
 	};
+	return 0;
 }
 
 int queue_add(struct queue *q, void *data)
 {
 	if (q->len == q->cap) {
-		return -1;
+		if (queue_grow(q, q->cap * 2) < 0) {
+			return -1;
+		}
 	}
 	q->len++;
 	memcpy(queue_addr(q, q->w), data, q->esize);
@@ -41,13 +78,12 @@ int queue_poll(struct queue *q, void *data)
 	return 0;
 }
 
-int queue_peek(struct queue *q, void *data)
+void *queue_peek(struct queue *q)
 {
 	if (q->len == 0) {
-		return -1;
+		return 0;
 	}
-	memcpy(data, queue_addr(q, q->r), q->esize);
-	return 0;
+	return queue_addr(q, q->r);
 }
 
 int queue_size(struct queue *q)
