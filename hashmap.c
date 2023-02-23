@@ -132,14 +132,13 @@ int hashmap_insert(struct hashmap *h, void *key, void *val)
 	return hashmap_maybe_grow(h);
 }
 
-int hashmap_get(struct hashmap *h, void *key, void *out)
+void *hashmap_get(struct hashmap *h, void *key)
 {
 	int pos = hashmap_find(h, key);
 	if (pos < 0 || !hashmap_pos_used(h, pos)) {
-		return -1;
+		return 0;
 	}
-	memcpy(out, hashmap_val_addr(h, pos), h->valsize);
-	return 0;
+	return hashmap_val_addr(h, pos);
 }
 
 int hashmap_delete(struct hashmap *h, void *key)
@@ -166,7 +165,7 @@ void hashmap_iter_init(struct hashmap_iter *it, struct hashmap *h)
 	};
 }
 
-int hashmap_iter_next(struct hashmap_iter *it, void *out)
+void *hashmap_iter_next(struct hashmap_iter *it)
 {
 	while (it->pos < it->h->cap && !hashmap_pos_used(it->h, it->pos)) {
 		it->pos++;
@@ -174,7 +173,7 @@ int hashmap_iter_next(struct hashmap_iter *it, void *out)
 	if (it->pos >= it->h->cap) {
 		return 0;
 	}
-	memcpy(out, hashmap_key_addr(it->h, it->pos), it->h->keysize);
+	void *addr = hashmap_key_addr(it->h, it->pos);
 	it->pos++;
-	return 1;
+	return addr;
 }
