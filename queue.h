@@ -16,5 +16,6 @@ extern int queue_poll(struct queue *q, void *out);
 extern void *queue_peek(struct queue *q);
 extern int queue_size(struct queue *q);
 extern int queue_empty(struct queue *q);
+extern void queue_free(struct queue *q);
 
 #endif

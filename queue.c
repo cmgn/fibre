@@ -95,3 +95,8 @@ int queue_empty(struct queue *q)
 {
 	return queue_size(q) == 0;
 }
+
+void queue_free(struct queue *q)
+{
+	free(q->mem);
+}

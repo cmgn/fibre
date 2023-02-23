@@ -157,6 +157,13 @@ int hashmap_size(struct hashmap *h)
 	return h->len;
 }
 
+void hashmap_free(struct hashmap *h)
+{
+	free(h->flags);
+	free(h->keys);
+	free(h->vals);
+}
+
 void hashmap_iter_init(struct hashmap_iter *it, struct hashmap *h)
 {
 	*it = (struct hashmap_iter){
