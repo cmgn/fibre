@@ -8,6 +8,20 @@
 #define STACK_SIZE (8 * 1024 * 1024)
 #define QUEUE_SIZE 1
 
+// Uncomment to enable detailed tracing.
+// #define TRACE
+
+#ifdef TRACE
+#define LOG(MSG, ...)                                 \
+	do {                                          \
+		printf("%s:%d ", __FILE__, __LINE__); \
+		printf((MSG), ##__VA_ARGS__);         \
+		puts("");                             \
+	} while (0)
+#else
+#define LOG(MSG, ...)
+#endif
+
 static struct fibre *curr;
 static struct queue ready;
 
