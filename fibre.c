@@ -15,11 +15,10 @@
 // Size of the stack for a fibre.
 #define STACK_SIZE (1 * 1024 * 1024)
 
-// Initial size of the ready queue.
-#define QUEUE_SIZE 32
+#define CONTAINER_SIZE 32
 
 // Enable detailed tracing.
-//#define TRACE
+#define TRACE
 
 #ifdef TRACE
 #define LOG(MSG, ...)                                 \
@@ -95,7 +94,8 @@ int add_watcher(int fd, struct fibre *f)
 	if (!v) {
 		LOG("first time seeing fd %d, initialising...", fd);
 		struct vec tmpv = { 0 };
-		if (vec_init(&tmpv, 32, sizeof(struct fibre *)) < 0) {
+		if (vec_init(&tmpv, CONTAINER_SIZE, sizeof(struct fibre *)) <
+		    0) {
 			return -1;
 		}
 		if (hashmap_insert(&fdwatchers, &fd, &tmpv) < 0) {
@@ -143,8 +143,7 @@ int notify_watchers()
 		int fd = ev->data.fd;
 		struct vec *watchers = hashmap_get(&fdwatchers, &fd);
 		int i;
-		LOG("finding suitable watcher for %d %d", fd,
-		    vec_size(watchers));
+		LOG("finding suitable watcher for %d", fd);
 		for (i = 0; i < vec_size(watchers); i++) {
 			struct fibre *f =
 				*(struct fibre **)vec_get(watchers, i);
@@ -153,7 +152,8 @@ int notify_watchers()
 			}
 		}
 		if (i == vec_size(watchers)) {
-			LOG("no suitable watcher for %d", fd);
+			LOG("no suitable watcher for %d; unregistering event type",
+			    fd);
 			uint32_t eset =
 				*(uint32_t *)hashmap_get(&fdevents, &fd);
 			eset &= ~ev->events;
@@ -161,10 +161,10 @@ int notify_watchers()
 			if (epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, ev) < 0) {
 				return -1;
 			}
-			hashmap_insert(&fdevents, &fd, &eset);
 			continue;
 		}
 		struct fibre *f = *(struct fibre **)vec_get(watchers, i);
+		LOG("found suitable watcher for %d: %p", fd, f);
 		queue_add(&ready, &f);
 		vec_delete(watchers, i);
 	}
@@ -207,16 +207,17 @@ int run_ready()
 int start(fibre_func entry, void *arg)
 {
 	int status = 0;
-	if (queue_init(&ready, QUEUE_SIZE, sizeof(struct fibre *)) < 0) {
+	if (queue_init(&ready, CONTAINER_SIZE, sizeof(struct fibre *)) < 0) {
 		status = -1;
 		goto failure;
 	}
-	if (hashmap_init(&fdwatchers, 32, sizeof(int), sizeof(struct queue)) <
-	    0) {
+	if (hashmap_init(&fdwatchers, CONTAINER_SIZE, sizeof(int),
+			 sizeof(struct queue)) < 0) {
 		status = -1;
 		goto cleanup_queue;
 	}
-	if (hashmap_init(&fdevents, 32, sizeof(int), sizeof(uint32_t)) < 0) {
+	if (hashmap_init(&fdevents, CONTAINER_SIZE, sizeof(int),
+			 sizeof(uint32_t)) < 0) {
 		status = -1;
 		goto cleanup_fdwatchers;
 	}
