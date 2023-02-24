@@ -13,7 +13,7 @@
 #include "vec.h"
 
 // Size of the stack for a fibre.
-#define STACK_SIZE (1 * 1024 * 1024)
+#define STACK_SIZE (128 * 1024)
 
 #define CONTAINER_SIZE 32
 
