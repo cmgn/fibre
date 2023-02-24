@@ -1,8 +1,8 @@
 OBJECTS += vec.o hashmap.o fibre_io.o fibre.o queue.o third_party/coro/libcoro.o
 CCFLAGS += -Wall -Werror
 
-main: $(OBJECTS) main.c
-	$(CC) $(CCFLAGS) -o main main.c $(OBJECTS)
+example: $(OBJECTS) example.c
+	$(CC) $(CCFLAGS) -o $@ $^
 
 third_party/coro/libcoro.o:
 	make -C third_party/coro
@@ -12,4 +12,4 @@ third_party/coro/libcoro.o:
 
 .PHONY: clean
 clean:
-	$(RM) main $(OBJECTS)
+	$(RM) example $(OBJECTS)
