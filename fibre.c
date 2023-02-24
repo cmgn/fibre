@@ -38,14 +38,14 @@
 static struct fibre *curr;
 
 // Pointers to fibres who are ready to run.
-static struct queue ready;
+static struct fibre_queue ready;
 
-// A mapping between file descriptors and vecors of fibres waiting for them
+// A mapping between file descriptors and fibre_vecors of fibres waiting for them
 // to be ready.
-static struct hashmap fdwatchers;
+static struct fibre_hashmap fdwatchers;
 
 // A mapping between file descriptors and the current event bitset.
-static struct hashmap fdevents;
+static struct fibre_hashmap fdevents;
 
 static int epollfd;
 
@@ -56,7 +56,7 @@ static void spawn_entry(struct coro *c, fibre_func func)
 	func(arg);
 }
 
-int spawn(fibre_func func, void *arg)
+int fibre_spawn(fibre_func func, void *arg)
 {
 	struct fibre *f = (struct fibre *)malloc(sizeof(*f));
 	if (!f) {
@@ -70,7 +70,7 @@ int spawn(fibre_func func, void *arg)
 	coro_init(&f->c, stack, STACK_SIZE, (coro_func)spawn_entry, func);
 	coro_resume(&f->c);
 	coro_yield(&f->c, arg);
-	if (queue_add(&ready, &f) < 0) {
+	if (fibre_queue_add(&ready, &f) < 0) {
 		LOG("created and scheduled %p", f);
 		goto cleanup_fibre;
 	}
@@ -81,26 +81,26 @@ cleanup_fibre:
 	return -1;
 }
 
-void yield(struct epoll_event *ev)
+void fibre_yield(struct epoll_event *ev)
 {
 	coro_yield(&curr->c, ev);
 }
 
 int add_watcher(int fd, struct fibre *f)
 {
-	struct vec *v = hashmap_get(&fdwatchers, &fd);
+	struct fibre_vec *v = fibre_hashmap_get(&fdwatchers, &fd);
 	if (!v) {
 		LOG("first time seeing fd %d, initialising...", fd);
-		struct vec tmpv = { 0 };
-		if (vec_init(&tmpv, CONTAINER_SIZE, sizeof(struct fibre *)) <
-		    0) {
+		struct fibre_vec tmpv = { 0 };
+		if (fibre_vec_init(&tmpv, CONTAINER_SIZE,
+				   sizeof(struct fibre *)) < 0) {
 			return -1;
 		}
-		if (hashmap_insert(&fdwatchers, &fd, &tmpv) < 0) {
-			vec_free(&tmpv);
+		if (fibre_hashmap_insert(&fdwatchers, &fd, &tmpv) < 0) {
+			fibre_vec_free(&tmpv);
 			return -1;
 		}
-		v = hashmap_get(&fdwatchers, &fd);
+		v = fibre_hashmap_get(&fdwatchers, &fd);
 		if (epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &f->ev) < 0) {
 			if (errno != EEXIST) {
 				LOG("failed to register %d with epoll: %s", fd,
@@ -108,11 +108,11 @@ int add_watcher(int fd, struct fibre *f)
 				return -1;
 			}
 		}
-		if (hashmap_insert(&fdevents, &fd, &f->ev.events) < 0) {
+		if (fibre_hashmap_insert(&fdevents, &fd, &f->ev.events) < 0) {
 			return -1;
 		}
 	}
-	uint32_t eset = *(uint32_t *)hashmap_get(&fdevents, &fd);
+	uint32_t eset = *(uint32_t *)fibre_hashmap_get(&fdevents, &fd);
 	if (!(eset & f->ev.events)) {
 		eset |= f->ev.events;
 		struct epoll_event ev = f->ev;
@@ -120,12 +120,12 @@ int add_watcher(int fd, struct fibre *f)
 		if (epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev) < 0) {
 			return -1;
 		}
-		if (hashmap_insert(&fdevents, &fd, &eset) < 0) {
+		if (fibre_hashmap_insert(&fdevents, &fd, &eset) < 0) {
 			return -1;
 		}
 	}
 	LOG("adding %p to watchers of %d", f, fd);
-	return vec_append(v, &f);
+	return fibre_vec_append(v, &f);
 }
 
 int notify_watchers()
@@ -139,21 +139,22 @@ int notify_watchers()
 	for (int i = 0; i < nfds; i++) {
 		struct epoll_event *ev = &events[i];
 		int fd = ev->data.fd;
-		struct vec *watchers = hashmap_get(&fdwatchers, &fd);
+		struct fibre_vec *watchers =
+			fibre_hashmap_get(&fdwatchers, &fd);
 		int i;
 		LOG("finding suitable watcher for %d", fd);
-		for (i = 0; i < vec_size(watchers); i++) {
+		for (i = 0; i < fibre_vec_size(watchers); i++) {
 			struct fibre *f =
-				*(struct fibre **)vec_get(watchers, i);
+				*(struct fibre **)fibre_vec_get(watchers, i);
 			if (f->ev.events & ev->events) {
 				break;
 			}
 		}
-		if (i == vec_size(watchers)) {
+		if (i == fibre_vec_size(watchers)) {
 			LOG("no suitable watcher for %d; unregistering event type",
 			    fd);
 			uint32_t eset =
-				*(uint32_t *)hashmap_get(&fdevents, &fd);
+				*(uint32_t *)fibre_hashmap_get(&fdevents, &fd);
 			eset &= ~ev->events;
 			ev->events = eset;
 			if (epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, ev) < 0) {
@@ -161,14 +162,14 @@ int notify_watchers()
 			}
 			continue;
 		}
-		struct fibre *f = *(struct fibre **)vec_get(watchers, i);
+		struct fibre *f = *(struct fibre **)fibre_vec_get(watchers, i);
 		LOG("found suitable watcher for %d: %p", fd, f);
-		queue_add(&ready, &f);
-		vec_delete(watchers, i);
-		if (vec_empty(watchers)) {
-			vec_free(watchers);
-			hashmap_delete(&fdwatchers, &fd);
-			hashmap_delete(&fdevents, &fd);
+		fibre_queue_add(&ready, &f);
+		fibre_vec_delete(watchers, i);
+		if (fibre_vec_empty(watchers)) {
+			fibre_vec_free(watchers);
+			fibre_hashmap_delete(&fdwatchers, &fd);
+			fibre_hashmap_delete(&fdevents, &fd);
 			epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, 0);
 		}
 	}
@@ -177,11 +178,11 @@ int notify_watchers()
 
 int run_ready()
 {
-	int nready = queue_size(&ready);
+	int nready = fibre_queue_size(&ready);
 	LOG("%d fibres ready", nready);
 	for (int i = 0; i < nready; i++) {
 		struct fibre *f;
-		queue_poll(&ready, &f);
+		fibre_queue_poll(&ready, &f);
 		curr = f;
 		LOG("resuming %p", f);
 		struct epoll_event *ev = coro_resume(&f->c);
@@ -192,14 +193,14 @@ int run_ready()
 			continue;
 		}
 		if (!ev) {
-			LOG("%p yielded with no epoll event; adding to ready",
+			LOG("%p fibre_yielded with no epoll event; adding to ready",
 			    f);
-			if (queue_add(&ready, &f) < 0) {
+			if (fibre_queue_add(&ready, &f) < 0) {
 				return -1;
 			}
 			continue;
 		}
-		LOG("%p yielded with an epoll event", f);
+		LOG("%p fibre_yielded with an epoll event", f);
 		memcpy(&f->ev, ev, sizeof(*ev));
 		if (add_watcher(ev->data.fd, f) < 0) {
 			return -1;
@@ -208,20 +209,21 @@ int run_ready()
 	return 0;
 }
 
-int start(fibre_func entry, void *arg)
+int fibre_start(fibre_func entry, void *arg)
 {
 	int status = 0;
-	if (queue_init(&ready, CONTAINER_SIZE, sizeof(struct fibre *)) < 0) {
+	if (fibre_queue_init(&ready, CONTAINER_SIZE, sizeof(struct fibre *)) <
+	    0) {
 		status = -1;
 		goto failure;
 	}
-	if (hashmap_init(&fdwatchers, CONTAINER_SIZE, sizeof(int),
-			 sizeof(struct queue)) < 0) {
+	if (fibre_hashmap_init(&fdwatchers, CONTAINER_SIZE, sizeof(int),
+			       sizeof(struct fibre_queue)) < 0) {
 		status = -1;
-		goto cleanup_queue;
+		goto cleanup_fibre_queue;
 	}
-	if (hashmap_init(&fdevents, CONTAINER_SIZE, sizeof(int),
-			 sizeof(uint32_t)) < 0) {
+	if (fibre_hashmap_init(&fdevents, CONTAINER_SIZE, sizeof(int),
+			       sizeof(uint32_t)) < 0) {
 		status = -1;
 		goto cleanup_fdwatchers;
 	}
@@ -229,12 +231,12 @@ int start(fibre_func entry, void *arg)
 		status = -1;
 		goto cleanup_fdevents;
 	}
-	if (spawn(entry, arg) < 0) {
+	if (fibre_spawn(entry, arg) < 0) {
 		status = -1;
 		goto cleanup_epoll;
 	}
 	for (;;) {
-		if (queue_empty(&ready)) {
+		if (fibre_queue_empty(&ready)) {
 			struct epoll_event ev;
 			epoll_wait(epollfd, &ev, 1, -1);
 		}
@@ -250,12 +252,12 @@ int start(fibre_func entry, void *arg)
 cleanup_epoll:
 	close(epollfd);
 cleanup_fdevents:
-	hashmap_free(&fdevents);
+	fibre_hashmap_free(&fdevents);
 cleanup_fdwatchers:
 	// TODO(cmgn): Clean this up properly. Vecs have to be freed.
-	hashmap_free(&fdwatchers);
-cleanup_queue:
-	queue_free(&ready);
+	fibre_hashmap_free(&fdwatchers);
+cleanup_fibre_queue:
+	fibre_queue_free(&ready);
 failure:
 	return status;
 }

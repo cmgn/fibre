@@ -68,8 +68,8 @@ void run(void *arg)
 			perror("accept");
 			goto cleanup_socket;
 		}
-		if (spawn(handler, (void *)(uintptr_t)client) < 0) {
-			perror("spawn");
+		if (fibre_spawn(handler, (void *)(uintptr_t)client) < 0) {
+			perror("fibre_spawn");
 			goto cleanup_socket;
 		}
 	}
@@ -82,7 +82,7 @@ cleanup_socket:
 
 int main(int argc, char **argv)
 {
-	if (start(run, 0) < 0) {
+	if (fibre_start(run, 0) < 0) {
 		return 1;
 	}
 	return 0;

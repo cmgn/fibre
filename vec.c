@@ -3,7 +3,7 @@
 
 #include "vec.h"
 
-static int vec_grow(struct vec *v, int newcap)
+static int fibre_vec_grow(struct fibre_vec *v, int newcap)
 {
 	void *newmem = malloc(v->esize * newcap);
 	if (!newmem) {
@@ -16,7 +16,7 @@ static int vec_grow(struct vec *v, int newcap)
 	return 0;
 }
 
-int vec_init(struct vec *v, int cap, int esize)
+int fibre_vec_init(struct fibre_vec *v, int cap, int esize)
 {
 	if (cap < 8) {
 		cap = 8;
@@ -25,7 +25,7 @@ int vec_init(struct vec *v, int cap, int esize)
 	if (!mem) {
 		return -1;
 	}
-	*v = (struct vec){
+	*v = (struct fibre_vec){
 		.mem = mem,
 		.esize = esize,
 		.cap = cap,
@@ -34,53 +34,54 @@ int vec_init(struct vec *v, int cap, int esize)
 	return 0;
 }
 
-int vec_append(struct vec *v, void *mem)
+int fibre_vec_append(struct fibre_vec *v, void *mem)
 {
 	if (v->len == v->cap) {
-		if (vec_grow(v, v->cap * 2) < 0) {
+		if (fibre_vec_grow(v, v->cap * 2) < 0) {
 			return -1;
 		}
 	}
-	memcpy(vec_get(v, v->len), mem, v->esize);
+	memcpy(fibre_vec_get(v, v->len), mem, v->esize);
 	v->len++;
 	return 0;
 }
 
-int vec_pop(struct vec *v, void *mem)
+int fibre_vec_pop(struct fibre_vec *v, void *mem)
 {
 	if (v->len == 0) {
 		return -1;
 	}
 	v->len--;
-	memcpy(mem, vec_get(v, v->len), v->esize);
+	memcpy(mem, fibre_vec_get(v, v->len), v->esize);
 	return 0;
 }
 
-int vec_delete(struct vec *v, int pos)
+int fibre_vec_delete(struct fibre_vec *v, int pos)
 {
 	for (int i = pos + 1; i < v->len; i++) {
-		memcpy(vec_get(v, pos - 1), vec_get(v, pos), v->esize);
+		memcpy(fibre_vec_get(v, pos - 1), fibre_vec_get(v, pos),
+		       v->esize);
 	}
 	v->len--;
 	return 0;
 }
 
-void *vec_get(struct vec *v, int pos)
+void *fibre_vec_get(struct fibre_vec *v, int pos)
 {
 	return v->mem + v->esize * pos;
 }
 
-int vec_size(struct vec *v)
+int fibre_vec_size(struct fibre_vec *v)
 {
 	return v->len;
 }
 
-int vec_empty(struct vec *v)
+int fibre_vec_empty(struct fibre_vec *v)
 {
 	return v->len == 0;
 }
 
-void vec_free(struct vec *v)
+void fibre_vec_free(struct fibre_vec *v)
 {
 	free(v->mem);
 }

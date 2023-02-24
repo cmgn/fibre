@@ -12,8 +12,8 @@ struct fibre {
 
 typedef void (*fibre_func)(void *arg);
 
-extern int spawn(fibre_func func, void *arg);
-extern void yield(struct epoll_event *ev);
-extern int start(fibre_func entry, void *arg);
+extern int fibre_spawn(fibre_func func, void *arg);
+extern void fibre_yield(struct epoll_event *ev);
+extern int fibre_start(fibre_func entry, void *arg);
 
 #endif

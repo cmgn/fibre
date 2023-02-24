@@ -1,7 +1,7 @@
 #ifndef _QUEUE_H
 #define _QUEUE_H
 
-struct queue {
+struct fibre_queue {
 	unsigned char *mem;
 	int esize;
 	int len;
@@ -10,12 +10,12 @@ struct queue {
 	int w;
 };
 
-extern int queue_init(struct queue *q, int cap, int esize);
-extern int queue_add(struct queue *q, void *data);
-extern int queue_poll(struct queue *q, void *out);
-extern void *queue_peek(struct queue *q);
-extern int queue_size(struct queue *q);
-extern int queue_empty(struct queue *q);
-extern void queue_free(struct queue *q);
+extern int fibre_queue_init(struct fibre_queue *q, int cap, int esize);
+extern int fibre_queue_add(struct fibre_queue *q, void *data);
+extern int fibre_queue_poll(struct fibre_queue *q, void *out);
+extern void *fibre_queue_peek(struct fibre_queue *q);
+extern int fibre_queue_size(struct fibre_queue *q);
+extern int fibre_queue_empty(struct fibre_queue *q);
+extern void fibre_queue_free(struct fibre_queue *q);
 
 #endif

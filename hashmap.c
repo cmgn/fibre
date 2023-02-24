@@ -9,17 +9,17 @@
 // TODO(cmgn): Make this configurable.
 #define GROWTH_THRESHOLD 0.8
 
-static void *hashmap_key_addr(struct hashmap *h, int pos)
+static void *fibre_hashmap_key_addr(struct fibre_hashmap *h, int pos)
 {
 	return h->keys + h->keysize * pos;
 }
 
-static void *hashmap_val_addr(struct hashmap *h, int pos)
+static void *fibre_hashmap_val_addr(struct fibre_hashmap *h, int pos)
 {
 	return h->vals + h->valsize * pos;
 }
 
-static int hashmap_pos_used(struct hashmap *h, int pos)
+static int fibre_hashmap_pos_used(struct fibre_hashmap *h, int pos)
 {
 	return h->flags[pos] & HASHMAP_USED;
 }
@@ -33,7 +33,7 @@ static unsigned long hash(unsigned char *a, int len)
 	return hash;
 }
 
-static int hashmap_grow(struct hashmap *h, int newcap)
+static int fibre_hashmap_grow(struct fibre_hashmap *h, int newcap)
 {
 	// We don't use realloc because we cannot recover if one of them fails.
 	void *newkeys = malloc(h->keysize * newcap);
@@ -60,8 +60,8 @@ static int hashmap_grow(struct hashmap *h, int newcap)
 	h->cap = newcap;
 	for (int i = 0; i < oldcap; i++) {
 		if (oldflags[i] & HASHMAP_USED) {
-			hashmap_insert(h, oldkeys + h->keysize * i,
-				       oldvals + h->valsize * i);
+			fibre_hashmap_insert(h, oldkeys + h->keysize * i,
+					     oldvals + h->valsize * i);
 		}
 	}
 	free(oldkeys);
@@ -76,36 +76,38 @@ cleanup_keys:
 	return -1;
 }
 
-static int hashmap_maybe_grow(struct hashmap *h)
+static int fibre_hashmap_maybe_grow(struct fibre_hashmap *h)
 {
 	double usage = (double)h->len / (double)h->cap;
 	if (usage >= GROWTH_THRESHOLD) {
-		return hashmap_grow(h, h->cap * GROWTH_FACTOR);
+		return fibre_hashmap_grow(h, h->cap * GROWTH_FACTOR);
 	}
 	return 0;
 }
 
-static int hashmap_find(struct hashmap *h, void *key)
+static int fibre_hashmap_find(struct fibre_hashmap *h, void *key)
 {
-	int startpos = hash(key, h->keysize) % h->cap;
+	int fibre_startpos = hash(key, h->keysize) % h->cap;
 	for (int i = 0; i < h->cap; i++) {
-		int pos = (startpos + i) % h->cap;
-		if (!hashmap_pos_used(h, pos)) {
+		int pos = (fibre_startpos + i) % h->cap;
+		if (!fibre_hashmap_pos_used(h, pos)) {
 			return pos;
 		}
-		if (memcmp(hashmap_key_addr(h, pos), key, h->keysize) == 0) {
+		if (memcmp(fibre_hashmap_key_addr(h, pos), key, h->keysize) ==
+		    0) {
 			return pos;
 		}
 	}
 	return -1;
 }
 
-int hashmap_init(struct hashmap *h, int cap, int keysize, int valsize)
+int fibre_hashmap_init(struct fibre_hashmap *h, int cap, int keysize,
+		       int valsize)
 {
 	if (cap < 8) {
 		cap = 8;
 	}
-	*h = (struct hashmap){
+	*h = (struct fibre_hashmap){
 		.flags = 0,
 		.keys = 0,
 		.vals = 0,
@@ -114,37 +116,37 @@ int hashmap_init(struct hashmap *h, int cap, int keysize, int valsize)
 		.cap = 0,
 		.len = 0,
 	};
-	return hashmap_grow(h, cap);
+	return fibre_hashmap_grow(h, cap);
 }
 
-int hashmap_insert(struct hashmap *h, void *key, void *val)
+int fibre_hashmap_insert(struct fibre_hashmap *h, void *key, void *val)
 {
-	int pos = hashmap_find(h, key);
+	int pos = fibre_hashmap_find(h, key);
 	if (pos < 0) {
 		return -1;
 	}
-	memcpy(hashmap_val_addr(h, pos), val, h->valsize);
-	if (!hashmap_pos_used(h, pos)) {
+	memcpy(fibre_hashmap_val_addr(h, pos), val, h->valsize);
+	if (!fibre_hashmap_pos_used(h, pos)) {
 		h->len++;
 		h->flags[pos] |= HASHMAP_USED;
-		memcpy(hashmap_key_addr(h, pos), key, h->keysize);
+		memcpy(fibre_hashmap_key_addr(h, pos), key, h->keysize);
 	}
-	return hashmap_maybe_grow(h);
+	return fibre_hashmap_maybe_grow(h);
 }
 
-void *hashmap_get(struct hashmap *h, void *key)
+void *fibre_hashmap_get(struct fibre_hashmap *h, void *key)
 {
-	int pos = hashmap_find(h, key);
-	if (pos < 0 || !hashmap_pos_used(h, pos)) {
+	int pos = fibre_hashmap_find(h, key);
+	if (pos < 0 || !fibre_hashmap_pos_used(h, pos)) {
 		return 0;
 	}
-	return hashmap_val_addr(h, pos);
+	return fibre_hashmap_val_addr(h, pos);
 }
 
-int hashmap_delete(struct hashmap *h, void *key)
+int fibre_hashmap_delete(struct fibre_hashmap *h, void *key)
 {
-	int pos = hashmap_find(h, key);
-	if (pos < 0 || !hashmap_pos_used(h, pos)) {
+	int pos = fibre_hashmap_find(h, key);
+	if (pos < 0 || !fibre_hashmap_pos_used(h, pos)) {
 		return -1;
 	}
 	h->len--;
@@ -152,35 +154,37 @@ int hashmap_delete(struct hashmap *h, void *key)
 	return 0;
 }
 
-int hashmap_size(struct hashmap *h)
+int fibre_hashmap_size(struct fibre_hashmap *h)
 {
 	return h->len;
 }
 
-void hashmap_free(struct hashmap *h)
+void fibre_hashmap_free(struct fibre_hashmap *h)
 {
 	free(h->flags);
 	free(h->keys);
 	free(h->vals);
 }
 
-void hashmap_iter_init(struct hashmap_iter *it, struct hashmap *h)
+void fibre_fibre_hashmap_iter_init(struct fibre_hashmap_iter *it,
+				   struct fibre_hashmap *h)
 {
-	*it = (struct hashmap_iter){
+	*it = (struct fibre_hashmap_iter){
 		.h = h,
 		.pos = 0,
 	};
 }
 
-void *hashmap_iter_next(struct hashmap_iter *it)
+void *fibre_fibre_hashmap_iter_next(struct fibre_hashmap_iter *it)
 {
-	while (it->pos < it->h->cap && !hashmap_pos_used(it->h, it->pos)) {
+	while (it->pos < it->h->cap &&
+	       !fibre_hashmap_pos_used(it->h, it->pos)) {
 		it->pos++;
 	}
 	if (it->pos >= it->h->cap) {
 		return 0;
 	}
-	void *addr = hashmap_key_addr(it->h, it->pos);
+	void *addr = fibre_hashmap_key_addr(it->h, it->pos);
 	it->pos++;
 	return addr;
 }

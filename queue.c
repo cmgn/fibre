@@ -3,14 +3,14 @@
 
 #include "queue.h"
 
-static void *queue_addr(struct queue *q, int pos)
+static void *fibre_queue_addr(struct fibre_queue *q, int pos)
 {
 	return q->mem + q->esize * pos;
 }
 
-static int queue_grow(struct queue *q, int newcap)
+static int fibre_queue_grow(struct fibre_queue *q, int newcap)
 {
-	struct queue newq = { 0 };
+	struct fibre_queue newq = { 0 };
 	void *mem = malloc(q->esize * newcap);
 	if (!mem) {
 		return -1;
@@ -19,10 +19,10 @@ static int queue_grow(struct queue *q, int newcap)
 	if (!tmp) {
 		goto cleanup_mem;
 	}
-	queue_init(&newq, newcap, q->esize);
-	while (!queue_empty(q)) {
-		queue_poll(q, tmp);
-		queue_add(&newq, tmp);
+	fibre_queue_init(&newq, newcap, q->esize);
+	while (!fibre_queue_empty(q)) {
+		fibre_queue_poll(q, tmp);
+		fibre_queue_add(&newq, tmp);
 	}
 	free(q->mem);
 	free(tmp);
@@ -34,7 +34,7 @@ cleanup_mem:
 	return -1;
 }
 
-int queue_init(struct queue *q, int cap, int esize)
+int fibre_queue_init(struct fibre_queue *q, int cap, int esize)
 {
 	if (cap < 8) {
 		cap = 8;
@@ -43,7 +43,7 @@ int queue_init(struct queue *q, int cap, int esize)
 	if (!mem) {
 		return -1;
 	}
-	*q = (struct queue){
+	*q = (struct fibre_queue){
 		.mem = mem,
 		.esize = esize,
 		.len = 0,
@@ -54,49 +54,49 @@ int queue_init(struct queue *q, int cap, int esize)
 	return 0;
 }
 
-int queue_add(struct queue *q, void *data)
+int fibre_queue_add(struct fibre_queue *q, void *data)
 {
 	if (q->len == q->cap) {
-		if (queue_grow(q, q->cap * 2) < 0) {
+		if (fibre_queue_grow(q, q->cap * 2) < 0) {
 			return -1;
 		}
 	}
 	q->len++;
-	memcpy(queue_addr(q, q->w), data, q->esize);
+	memcpy(fibre_queue_addr(q, q->w), data, q->esize);
 	q->w = (q->w + 1) % q->cap;
 	return 0;
 }
 
-int queue_poll(struct queue *q, void *data)
+int fibre_queue_poll(struct fibre_queue *q, void *data)
 {
 	if (q->len == 0) {
 		return -1;
 	}
 	q->len--;
-	memcpy(data, queue_addr(q, q->r), q->esize);
+	memcpy(data, fibre_queue_addr(q, q->r), q->esize);
 	q->r = (q->r + 1) % q->cap;
 	return 0;
 }
 
-void *queue_peek(struct queue *q)
+void *fibre_queue_peek(struct fibre_queue *q)
 {
 	if (q->len == 0) {
 		return 0;
 	}
-	return queue_addr(q, q->r);
+	return fibre_queue_addr(q, q->r);
 }
 
-int queue_size(struct queue *q)
+int fibre_queue_size(struct fibre_queue *q)
 {
 	return q->len;
 }
 
-int queue_empty(struct queue *q)
+int fibre_queue_empty(struct fibre_queue *q)
 {
-	return queue_size(q) == 0;
+	return fibre_queue_size(q) == 0;
 }
 
-void queue_free(struct queue *q)
+void fibre_queue_free(struct fibre_queue *q)
 {
 	free(q->mem);
 }
