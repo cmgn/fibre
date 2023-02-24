@@ -1,7 +1,10 @@
 OBJECTS += vec.o hashmap.o fibre_io.o fibre.o queue.o third_party/coro/libcoro.a
 CCFLAGS += -Wall -Werror
 
-example: $(OBJECTS) example.c
+libfibre.a: $(OBJECTS)
+	ld -r $^ -o $@
+
+example: libfibre.a example.c
 	$(CC) $(CCFLAGS) -o $@ $^
 
 third_party/coro/libcoro.a:
@@ -12,4 +15,4 @@ third_party/coro/libcoro.a:
 
 .PHONY: clean
 clean:
-	$(RM) example $(OBJECTS)
+	$(RM) libfibre.a example $(OBJECTS)
