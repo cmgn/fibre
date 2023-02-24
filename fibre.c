@@ -18,7 +18,7 @@
 #define CONTAINER_SIZE 32
 
 // Enable detailed tracing.
-#define TRACE
+//#define TRACE
 
 #ifdef TRACE
 #define LOG(MSG, ...)                                 \
@@ -39,8 +39,6 @@ static struct fibre *curr;
 
 // Pointers to fibres who are ready to run.
 static struct queue ready;
-
-// TODO(cmgn): Remove unneeded fds from the maps & remove them from epoll.
 
 // A mapping between file descriptors and vecors of fibres waiting for them
 // to be ready.
@@ -113,7 +111,6 @@ int add_watcher(int fd, struct fibre *f)
 		if (hashmap_insert(&fdevents, &fd, &f->ev.events) < 0) {
 			return -1;
 		}
-		LOG("added fd %d to fdwatchers and registered with epoll", fd);
 	}
 	uint32_t eset = *(uint32_t *)hashmap_get(&fdevents, &fd);
 	if (!(eset & f->ev.events)) {
@@ -127,6 +124,7 @@ int add_watcher(int fd, struct fibre *f)
 			return -1;
 		}
 	}
+	LOG("adding %p to watchers of %d", f, fd);
 	return vec_append(v, &f);
 }
 
@@ -167,6 +165,12 @@ int notify_watchers()
 		LOG("found suitable watcher for %d: %p", fd, f);
 		queue_add(&ready, &f);
 		vec_delete(watchers, i);
+		if (vec_empty(watchers)) {
+			vec_free(watchers);
+			hashmap_delete(&fdwatchers, &fd);
+			hashmap_delete(&fdevents, &fd);
+			epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, 0);
+		}
 	}
 	return 0;
 }
