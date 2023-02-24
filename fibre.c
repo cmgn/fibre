@@ -86,7 +86,7 @@ void fibre_yield(struct epoll_event *ev)
 	coro_yield(&curr->c, ev);
 }
 
-int add_watcher(int fd, struct fibre *f)
+static int add_watcher(int fd, struct fibre *f)
 {
 	struct fibre_vec *v = fibre_hashmap_get(&fdwatchers, &fd);
 	if (!v) {
@@ -128,7 +128,7 @@ int add_watcher(int fd, struct fibre *f)
 	return fibre_vec_append(v, &f);
 }
 
-int notify_watchers()
+static int notify_watchers()
 {
 	struct epoll_event events[8192];
 	int nfds;
@@ -177,7 +177,7 @@ int notify_watchers()
 	return 0;
 }
 
-int run_ready()
+static int run_ready()
 {
 	int nready = fibre_queue_size(&ready);
 	LOG("%d fibres ready", nready);
