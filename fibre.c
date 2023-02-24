@@ -161,6 +161,7 @@ int notify_watchers()
 				return -1;
 			}
 			continue;
+			fibre_hashmap_insert(&fdevents, &fd, &eset);
 		}
 		struct fibre *f = *(struct fibre **)fibre_vec_get(watchers, i);
 		LOG("found suitable watcher for %d: %p", fd, f);
