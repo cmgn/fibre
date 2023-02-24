@@ -1,4 +1,4 @@
-OBJECTS += hashmap.o fibre.o queue.o third_party/coro/libcoro.o
+OBJECTS += vec.o hashmap.o fibre.o queue.o third_party/coro/libcoro.o
 CCFLAGS += -Wall -Werror
 
 main: $(OBJECTS) main.c
