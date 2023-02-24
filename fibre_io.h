@@ -4,5 +4,6 @@
 extern int fibre_write(int fd, const char *buf, unsigned long n);
 extern int fibre_read(int fd, char *buf, unsigned long n);
 extern int fibre_accept(int fd);
+extern int fibre_sleep(long ms);
 
 #endif
