@@ -18,7 +18,7 @@
 #define CONTAINER_SIZE 32
 
 // Enable detailed tracing.
-#define TRACE
+//#define TRACE
 
 #ifdef TRACE
 #define LOG(MSG, ...)                                 \
