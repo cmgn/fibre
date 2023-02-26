@@ -165,8 +165,8 @@ static int notify_watchers()
 			if (epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, ev) < 0) {
 				return -1;
 			}
-			continue;
 			fibre_hashmap_insert(&fdevents, &fd, &eset);
+			continue;
 		}
 		struct fibre *f = *(struct fibre **)fibre_vec_get(watchers, i);
 		LOG("found suitable watcher for %d: %p", fd, f);
