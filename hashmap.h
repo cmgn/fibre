@@ -26,8 +26,8 @@ extern void *fibre_hashmap_get(struct fibre_hashmap *h, void *key);
 extern int fibre_hashmap_size(struct fibre_hashmap *h);
 extern void fibre_hashmap_free(struct fibre_hashmap *h);
 
-extern void fibre_fibre_hashmap_iter_init(struct fibre_hashmap_iter *it,
-					  struct fibre_hashmap *h);
-extern void *fibre_fibre_hashmap_iter_next(struct fibre_hashmap_iter *it);
+extern void fibre_hashmap_iter_init(struct fibre_hashmap_iter *it,
+				    struct fibre_hashmap *h);
+extern void *fibre_hashmap_iter_next(struct fibre_hashmap_iter *it);
 
 #endif

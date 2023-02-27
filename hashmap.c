@@ -166,8 +166,8 @@ void fibre_hashmap_free(struct fibre_hashmap *h)
 	free(h->vals);
 }
 
-void fibre_fibre_hashmap_iter_init(struct fibre_hashmap_iter *it,
-				   struct fibre_hashmap *h)
+void fibre_hashmap_iter_init(struct fibre_hashmap_iter *it,
+			     struct fibre_hashmap *h)
 {
 	*it = (struct fibre_hashmap_iter){
 		.h = h,
@@ -175,7 +175,7 @@ void fibre_fibre_hashmap_iter_init(struct fibre_hashmap_iter *it,
 	};
 }
 
-void *fibre_fibre_hashmap_iter_next(struct fibre_hashmap_iter *it)
+void *fibre_hashmap_iter_next(struct fibre_hashmap_iter *it)
 {
 	while (it->pos < it->h->cap &&
 	       !fibre_hashmap_pos_used(it->h, it->pos)) {
