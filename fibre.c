@@ -259,8 +259,13 @@ cleanup_epoll:
 	close(epollfd);
 cleanup_fdevents:
 	fibre_hashmap_free(&fdevents);
-cleanup_fdwatchers:
-	// TODO(cmgn): Clean this up properly. Vecs have to be freed.
+cleanup_fdwatchers:; // Semi-colon to allow declaration.
+	struct fibre_hashmap_iter it;
+	fibre_hashmap_iter_init(&it, &fdwatchers);
+	struct fibre_vec *v;
+	while ((v = fibre_hashmap_iter_next(&it))) {
+		fibre_vec_free(v);
+	}
 	fibre_hashmap_free(&fdwatchers);
 cleanup_fibre_queue:
 	fibre_queue_free(&ready);
