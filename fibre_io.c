@@ -7,7 +7,7 @@
 #include "fibre.h"
 #include "fibre_io.h"
 
-int fibre_write(int fd, const char *buf, unsigned long n)
+ssize_t fibre_write(int fd, const char *buf, unsigned long n)
 {
 	struct epoll_event ev = { 0 };
 	ev.data.fd = fd;
@@ -16,7 +16,7 @@ int fibre_write(int fd, const char *buf, unsigned long n)
 	return write(fd, buf, n);
 }
 
-int fibre_read(int fd, char *buf, unsigned long n)
+ssize_t fibre_read(int fd, char *buf, unsigned long n)
 {
 	struct epoll_event ev = { 0 };
 	ev.data.fd = fd;
