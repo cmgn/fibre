@@ -82,6 +82,10 @@ cleanup_socket:
 
 int main(int argc, char **argv)
 {
+	struct fibre_opts opts = {
+		.stack_size = 32 * 1024,
+	};
+	fibre_set_opts(&opts);
 	if (fibre_start(run, 0) < 0) {
 		return 1;
 	}

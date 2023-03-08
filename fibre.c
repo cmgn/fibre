@@ -12,9 +12,6 @@
 #include "hashmap.h"
 #include "vec.h"
 
-// Size of the stack for a fibre.
-#define STACK_SIZE (128 * 1024)
-
 #define CONTAINER_SIZE 32
 
 // Enable detailed tracing.
@@ -33,6 +30,11 @@
 #endif
 
 #define LEN(X) (sizeof(X) / sizeof(*X))
+
+// Global fibre options.
+static struct fibre_opts global_opts = {
+	.stack_size = 512 * 1024,
+};
 
 // The currently active fibre.
 static struct fibre *curr;
@@ -63,11 +65,12 @@ int fibre_spawn(fibre_func func, void *arg)
 		return -1;
 	}
 	memset(f, 0, sizeof(*f));
-	void *stack = malloc(STACK_SIZE);
+	void *stack = malloc(global_opts.stack_size);
 	if (!stack) {
 		goto cleanup_fibre;
 	}
-	coro_init(&f->c, stack, STACK_SIZE, (coro_func)spawn_entry, func);
+	coro_init(&f->c, stack, global_opts.stack_size, (coro_func)spawn_entry,
+		  func);
 	coro_resume(&f->c);
 	coro_yield(&f->c, arg);
 	if (fibre_queue_add(&ready, &f) < 0) {
@@ -271,4 +274,9 @@ cleanup_fibre_queue:
 	fibre_queue_free(&ready);
 failure:
 	return status;
+}
+
+extern void fibre_set_opts(struct fibre_opts *opts)
+{
+	global_opts = *opts;
 }
