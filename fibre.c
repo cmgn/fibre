@@ -65,7 +65,7 @@ int fibre_spawn(fibre_func func, void *arg)
 		return -1;
 	}
 	memset(f, 0, sizeof(*f));
-	void *stack = malloc(global_opts.stack_size);
+	void *stack = aligned_alloc(16, global_opts.stack_size);
 	if (!stack) {
 		goto cleanup_fibre;
 	}
