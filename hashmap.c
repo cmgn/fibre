@@ -4,6 +4,7 @@
 #include "hashmap.h"
 
 #define HASHMAP_USED 1
+#define HASHMAP_GRAVESTONE 2
 
 #define GROWTH_FACTOR 2
 // TODO(cmgn): Make this configurable.
@@ -85,12 +86,15 @@ static int fibre_hashmap_maybe_grow(struct fibre_hashmap *h)
 	return 0;
 }
 
-static int fibre_hashmap_find(struct fibre_hashmap *h, void *key)
+static int fibre_hashmap_find(struct fibre_hashmap *h, void *key,
+			      int stop_at_gravestone)
 {
 	int fibre_startpos = hash(key, h->keysize) % h->cap;
 	for (int i = 0; i < h->cap; i++) {
 		int pos = (fibre_startpos + i) % h->cap;
-		if (!fibre_hashmap_pos_used(h, pos)) {
+		if (!fibre_hashmap_pos_used(h, pos) ||
+		    (stop_at_gravestone &&
+			    (h->flags[pos] & HASHMAP_GRAVESTONE))) {
 			return pos;
 		}
 		if (memcmp(fibre_hashmap_key_addr(h, pos), key, h->keysize) ==
@@ -121,7 +125,7 @@ int fibre_hashmap_init(struct fibre_hashmap *h, int cap, int keysize,
 
 int fibre_hashmap_insert(struct fibre_hashmap *h, void *key, void *val)
 {
-	int pos = fibre_hashmap_find(h, key);
+	int pos = fibre_hashmap_find(h, key, 1);
 	if (pos < 0) {
 		return -1;
 	}
@@ -129,6 +133,7 @@ int fibre_hashmap_insert(struct fibre_hashmap *h, void *key, void *val)
 	if (!fibre_hashmap_pos_used(h, pos)) {
 		h->len++;
 		h->flags[pos] |= HASHMAP_USED;
+		h->flags[pos] &= ~HASHMAP_GRAVESTONE;
 		memcpy(fibre_hashmap_key_addr(h, pos), key, h->keysize);
 	}
 	return fibre_hashmap_maybe_grow(h);
@@ -136,7 +141,7 @@ int fibre_hashmap_insert(struct fibre_hashmap *h, void *key, void *val)
 
 void *fibre_hashmap_get(struct fibre_hashmap *h, void *key)
 {
-	int pos = fibre_hashmap_find(h, key);
+	int pos = fibre_hashmap_find(h, key, 0);
 	if (pos < 0 || !fibre_hashmap_pos_used(h, pos)) {
 		return 0;
 	}
@@ -145,12 +150,13 @@ void *fibre_hashmap_get(struct fibre_hashmap *h, void *key)
 
 int fibre_hashmap_delete(struct fibre_hashmap *h, void *key)
 {
-	int pos = fibre_hashmap_find(h, key);
+	int pos = fibre_hashmap_find(h, key, 0);
 	if (pos < 0 || !fibre_hashmap_pos_used(h, pos)) {
 		return -1;
 	}
 	h->len--;
 	h->flags[pos] &= ~HASHMAP_USED;
+	h->flags[pos] |= HASHMAP_GRAVESTONE;
 	return 0;
 }
 
