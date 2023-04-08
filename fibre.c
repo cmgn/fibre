@@ -144,6 +144,11 @@ static int notify_watchers()
 		int fd = ev->data.fd;
 		struct fibre_vec *watchers =
 			fibre_hashmap_get(&fdwatchers, &fd);
+		// TODO(cmgn): Work out why this happens.
+		if (!watchers) {
+			epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, 0);
+			continue;
+		}
 		int i;
 		LOG("finding suitable watcher for %d", fd);
 		for (i = 0; i < fibre_vec_size(watchers); i++) {
